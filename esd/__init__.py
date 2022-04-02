@@ -1,5 +1,5 @@
 from . import util
 
-from .util.config import RedRiverConfig
+from .util.config import OmoConfig
 import os
-cfg = RedRiverConfig(os.getenv('REDRIVER_INI'))
+cfg = OmoConfig('omo_config.ini')

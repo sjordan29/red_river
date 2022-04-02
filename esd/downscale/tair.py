@@ -19,11 +19,11 @@ def downscale_analog_anoms(ds, win_masks):
     
     for a_date in da_mod_anoms.time.to_pandas().index:
         
-        print a_date
+        print(a_date)
         
         vals_mod = da_mod_anoms.loc[a_date]
         analog_pool = da_obsc_anoms[win_masks.loc[a_date.strftime('%m-%d')].values]        
-        rmse_analogs = np.sqrt((np.square(vals_mod - analog_pool)).mean(dim=('lon', 'lat')))
+        rmse_analogs = np.sqrt((np.square(vals_mod - analog_pool)).mean(dim=('longitude', 'latitue')))
         vals_analog = analog_pool[int(rmse_analogs.argmin())]
         
         s = vals_mod - vals_analog
@@ -38,13 +38,13 @@ def downscale_analog_anoms(ds, win_masks):
 
 def to_clim(da_tair):
     
-    da_mthly = da_tair.resample('MS', dim='time', how='mean', skipna=False)
+    da_mthly = da_tair.resample(time='MS').mean()
     da_clim =  da_mthly.groupby('time.month').mean(dim='time')
     return da_clim
     
 def to_anomalies(da_tair, base_startend_yrs=None):
     
-    da_tair_mthly = da_tair.resample('MS', dim='time', how='mean', skipna=False)
+    da_tair_mthly = da_tair.resample(time='MS').mean() # , how='mean', skipna=False)
     
     if base_startend_yrs is None:
         da_tair_clim = da_tair_mthly.groupby('time.month').mean(dim='time') 
@@ -151,16 +151,16 @@ def _downscale_anoms(da_obs, da_obsc, da_mod, win_masks, n_analog=1):
     da_mod_d = da_mod.copy()
     
     for a_date in da_mod.time.to_pandas().index:
-        
         #print a_date
         vals_mod = da_mod.loc[a_date]
         analog_pool = da_obsc[win_masks.loc[a_date.strftime('%m-%d')].values]        
-        rmse_analogs = np.sqrt((np.square(vals_mod - analog_pool)).mean(dim=('lon', 'lat')))
+        rmse_analogs = np.sqrt((np.square(vals_mod - analog_pool)).mean(dim=('longitude', 'latitude')))
         i_rmse = rmse_analogs.argsort().values
         
         vals_analog = analog_pool[i_rmse[0:n_analog]]
         
-        s = vals_mod - vals_analog
+        s = vals_mod - vals_analog  # calculate anomaly
+        print(a_date, s)
         vals_d = (da_obs.loc[vals_analog.time.values] + s).mean(dim='time')      
         da_mod_d.loc[a_date] = vals_d.values
     
@@ -172,13 +172,17 @@ class TairDownscale():
     def __init__(self, fpath_tair_obs, fpath_tair_obsc, base_start_year,
                  base_end_year, train_start_year, train_end_year, downscale_wins):
         
-        self.da_obs = xr.open_dataset(fpath_tair_obs).SAT
-        self.da_obsc = xr.open_dataset(fpath_tair_obsc).SAT.load()    
-        self.da_obs = self.da_obs.loc[:, self.da_obsc.lat.values, self.da_obsc.lon.values].load()
-    
-        self.da_obs['time'] = _convert_times(self.da_obs)
-        self.da_obsc['time'] = _convert_times(self.da_obsc)
+        self.da_obs = xr.open_dataset(fpath_tair_obs).t2m # observed
+        self.da_obsc = xr.open_dataset(fpath_tair_obsc).t2m.load() # resampled coarse grid back to high-resolution grid
 
+        # Needed to round lat/lon data because of small differences (10^-7) -- but to_anomalies func won't work without it
+        latlon_dict = {'latitude': self.da_obsc.latitude.round(3), 'longitude': self.da_obsc.longitude.round(3)}
+        latlon_dict_obs = {'latitude': self.da_obs.latitude.round(3), 'longitude': self.da_obs.longitude.round(3)}
+        self.da_obs = self.da_obs.assign_coords(latlon_dict_obs)
+        self.da_obsc = self.da_obsc.assign_coords(latlon_dict)
+        self.da_obs = self.da_obs.loc[:,self.da_obsc.latitude, self.da_obsc.longitude].load() # sJ changed because of different order in CHIRPS data 
+
+        # convert all gridded observations to daily temperature anomalies 
         self.da_obs_anoms,self.da_obs_clim = to_anomalies(self.da_obs, (base_start_year, base_end_year))
         self.da_obsc_anoms = to_anomalies(self.da_obsc, (base_start_year,base_end_year))[0]
             
@@ -196,7 +200,9 @@ class TairDownscale():
         
     def downscale(self, da_mod):
         
-        da_mod_base_clim =  to_clim(da_mod.loc[self.base_start_year:self.base_end_year])
+        # monthly normals 
+        da_mod_base_clim =  to_clim(da_mod.loc[self.base_start_year:self.base_end_year]) # monthly averages
+        print("monthly normals", da_mod_base_clim)
         
         da_mod_d_all = []
         
@@ -229,12 +235,19 @@ class TairDownscale():
                 clim_dif_d['month'] = clim_dif_d['month.month'].values
                 
                 da_mod_d_clim = self.da_obs_clim + clim_dif_d
-                
             da_mod_anom = da_mod_win.groupby('time.month') - da_mod_clim
             da_mod_anom = da_mod_anom.drop('month')
+
+            print("-------------da_obs_anom-----------------")
+            print(self.da_obs_anoms)
+            print("-------------da_obsc_anom----------------")
+            print(self.da_obsc_anoms)
+            print("-------------da_mod_anom------------------")
+            print(da_mod_anom)
             
             da_mod_anom_d = _downscale_anoms(self.da_obs_anoms, self.da_obsc_anoms,
                                              da_mod_anom, self.win_masks91, n_analog=1)
+
             da_mod_d = da_mod_anom_d.groupby('time.month') + da_mod_d_clim
             da_mod_d = da_mod_d.drop('month')
             

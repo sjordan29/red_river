@@ -1,15 +1,22 @@
 #########
-Red River CMIP5 bias correction and downscaling
+Omo CMIP5 bias correction and downscaling
 #########
 
 Python and R code for bias correction and empirical-statistical downscaling of
-CMIP5 projections for the Red River basin in Vietnam. Bias correction and downscaling of
-CMIP5 projections was conducted in support of:
+CMIP5 projections for the Omo River Basin in Ethiopia.
+
+The repository also includes code to calculate the zonal average precipitation and temperature for each subbasin in a SWAT model of the Omo River Basin and reformat the data into a SWAT-friendly input format.  
+
+=======================
+Code
+=======================
+This is a fork of code for bias correction and downscaling of CMIP5 projections in support of:
 
 Quinn JD, Reed PM, Giuliani M, Castelletti A, Oyler JW, Nicholas RE. 2018. Exploring How
 Changing Monsoonal Dynamics and Human Pressures Challenge Multi-Reservoir Management for
 Flood Protection, Hydropower Production and Agricultural Water Supply.
 Water resources research. DOI: `10.1029/2018WR022743. <http://dx.doi.org/10.1029/2018WR022743>`_
+
 
 =======================
 Bias Correction Methods
@@ -17,7 +24,7 @@ Bias Correction Methods
 
 We use a variation of the modified equidistant quantile matching (EDCDFm)
 algorithm (`Li et al. 2010`_) of (`Pierce et al. 2015`_) to bias correct CMIP5
-projections for the Red River, Vietnam. Details of the Red River variation of
+projections for the Omo River Basin, Ethiopia. Details of the Red River variation of
 EDCDFm are provided `here. <https://github.com/scrim-network/red_river/blob/master/docs/bias_correction_methods.ipynb>`_
 
 =======================
@@ -25,7 +32,7 @@ Downscaling Methods
 =======================
 
 We use a variation of the constructed analogs method described by (`Pierce et al. 2014`_)
-to downscale CMIP5 projections for the Red River, Vietnam. Our modified method is
+to downscale CMIP5 projections for the Omo River Basin, Ethiopia. Our modified method is
 termed **Constructed Analogs with Single Anomaly Analog (CASAA)**. Details of the
 Red River CASAA method are provided `here. <https://github.com/scrim-network/red_river/blob/master/docs/downscaling_methods.ipynb>`_
 

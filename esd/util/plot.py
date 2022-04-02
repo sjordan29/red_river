@@ -3,7 +3,7 @@ Utility functions for plotting
 '''
 
 from mpl_toolkits.axes_grid1.axes_grid import ImageGrid
-from mpl_toolkits.basemap import Basemap
+# from mpl_toolkits.basemap import Basemap
 import math
 import matplotlib.pyplot as plt
 import numpy as np

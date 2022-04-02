@@ -1,5 +1,5 @@
 import numpy as np
-from osgeo import gdal,osr
+# from osgeo import gdal,osr
 import pandas as pd
 
 PROJECTION_GEO_WGS84 = 4326  # EPSG Code
@@ -376,20 +376,20 @@ def buffer_cdo_lonlat_grid_cfg(fpath_cdo_grid_cfg, buf, new_inc=None):
     grid_cfg.index = grid_cfg.index.str.strip()
      
     xlast = grid_cfg.loc['xfirst'] + ((grid_cfg.loc['xsize']-1) * grid_cfg.loc['xinc'])
-    lon = np.linspace(grid_cfg.loc['xfirst'], xlast, num=grid_cfg.loc['xsize'])
+    lon = np.linspace(grid_cfg.loc['xfirst'], xlast, num=int(grid_cfg.loc['xsize']))
      
     ylast = grid_cfg.loc['yfirst'] + ((grid_cfg.loc['ysize']-1) * grid_cfg.loc['yinc'])
-    lat = np.linspace(grid_cfg.loc['yfirst'], ylast, num=grid_cfg.loc['ysize'])
+    lat = np.linspace(grid_cfg.loc['yfirst'], ylast, num=int(grid_cfg.loc['ysize']))
           
     buf_xfirst = lon[0] - buf
     buf_xlast = lon[-1] + buf
     buf_nx = (np.abs((lon[0] - buf) - (lon[-1] + buf))/(grid_cfg.loc['xinc'])) + 1
-    buf_lon = np.linspace(buf_xfirst, buf_xlast, buf_nx)
+    buf_lon = np.linspace(buf_xfirst, buf_xlast, int(buf_nx))
      
     buf_yfirst = lat[0] - buf
     buf_ylast = lat[-1] + buf
     buf_ny = (np.abs((lat[0] - buf) - (lat[-1] + buf))/(grid_cfg.loc['yinc'])) + 1
-    buf_lat = np.linspace(buf_yfirst, buf_ylast, buf_ny)
+    buf_lat = np.linspace(buf_yfirst, buf_ylast, int(buf_ny))
     
     if new_inc is None:
         

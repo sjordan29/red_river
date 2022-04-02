@@ -1,0 +1,7 @@
+to create / get an idea of that the cdo_grid_files are, you can do
+
+cdo -griddes *.nc 
+
+
+--- 
+

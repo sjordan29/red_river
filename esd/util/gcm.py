@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
+# import datetime as dt
 
 
 def unit_convert_pr(da):
-    
     # Convert from kg m-2 s-1 to mm per day
     assert da.units == 'kg m-2 s-1'
     # Check for possible invalid negative values from bicubic interpolation
@@ -17,7 +17,7 @@ def unit_convert_tas(da):
     
     # Convert from Kelvin to Celsius
     assert da.units == 'K'
-    da = da-273.15
+    da = da - 273.15
     da.attrs['units'] = 'C'
     return da
 
@@ -25,20 +25,32 @@ def unit_convert_none(da):
     return da
 
 def clean_gcm_da(da, unit_convert_func=unit_convert_none, startend_dates=None):
-    
+    da = da.sel(lat=slice(1,13), lon=slice(29,42))
     # Get rid of duplicated days
     da = da.isel(time=np.nonzero((~da.time.to_pandas().duplicated()).values)[0])
 
+    # # convert dates
+    # datetimeindex = da.indexes['time'].to_datetimeindex()
+    # da['time'] = datetimeindex
+
     # Get rid of days > 2101 due to pandas Timestamp range limitation
-    da = da.sel(time=da.time[da.time <= 21010101])
+    # da = da.sel(time=da.time[da.time <= pd.to_datetime("2101-01-01")])
     
     # Perform unit conversion
     da = unit_convert_func(da)
     
     # Convert times to datetime format
-    times = pd.to_datetime(da.time.to_pandas().astype(np.str),
-                           format='%Y%m%d.5', errors='coerce')        
-    da['time'] = times.values
+    # times = pd.to_datetime(da['time'].dt.strftime("%Y%m%d").to_pandas(),   #.astype(np.str),
+    #                         format='%Y%m%d.5', errors='coerce')   
+    # print(times)     
+    # da['time'] = times.values
+    # Get rid of invalid dates (occurs with 360-day calendar)
+    datetimeindex = da.indexes['time'].strftime("%Y%m%d").values.tolist()
+    datetimeindex = pd.to_datetime(datetimeindex,
+                           format='%Y%m%d', errors='coerce')
+    da['time'] = datetimeindex
+
+
     # Get rid of invalid dates (occurs with 360-day calendar)
     da = da.isel(time=np.nonzero(da.time.notnull().values)[0])
     times = da.time.to_pandas()
@@ -55,10 +67,10 @@ def clean_gcm_da(da, unit_convert_func=unit_convert_none, startend_dates=None):
     
     # Reindex to full sequence and place NA for missing values
     da = da.reindex(time=times_full)
-    
+    # da = da.to_array()
     s = da.to_series() #index: time, lat, lon
     s = s.reorder_levels(['lat','lon','time'])
-    s = s.sortlevel(0, sort_remaining=True)
+    s = s.sort_index(0, sort_remaining=True)
     s = s.unstack(['lat','lon'])
     s = s.interpolate(method='time')
     da_cleaned = xr.DataArray.from_series(s.stack(['lat','lon']))

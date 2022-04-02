@@ -14,9 +14,9 @@ def setup_data_for_analog(fpath_prcp_obs, fpath_prcp_obsc, fpath_prcp_mod,
                           base_start_year, base_end_year, downscale_start_year,
                           downscale_end_year):
     
-    da_obs = xr.open_dataset(fpath_prcp_obs).PCP
-    da_obsc = xr.open_dataset(fpath_prcp_obsc).PCP
-    da_mod = xr.open_dataset(fpath_prcp_mod).PCP
+    da_obs = xr.open_dataset(fpath_prcp_obs).precip
+    da_obsc = xr.open_dataset(fpath_prcp_obsc).precip
+    da_mod = xr.open_dataset(fpath_prcp_mod).precip
 
     da_obs['time'] = _convert_times(da_obs)
     da_obsc['time'] = _convert_times(da_obsc)
@@ -76,7 +76,7 @@ def downscale_analog_anoms(ds, win_masks):
     
     for a_date in da_mod_anoms.time.to_pandas().index:
         
-        print a_date
+        print(a_date)
         
         vals_mod = da_mod_anoms.loc[a_date]
         analog_pool = da_obsc_anoms[win_masks.loc[a_date.strftime('%m-%d')].values]
@@ -202,7 +202,7 @@ def downscale_analog_anoms_sgrid(ds, win_masks):
     
     for a_date in da_mod_anoms.time.to_pandas().index:
         
-        print a_date
+        print(a_date)
         
         vals_mod = da_mod_anoms.loc[a_date]
         analog_pool = da_obsc_anoms[win_masks.loc[a_date.strftime('%m-%d')].values]        
@@ -232,7 +232,7 @@ def downscale_analog_anoms_noscale(ds, win_masks):
     
     for a_date in da_mod_anoms.time.to_pandas().index:
         
-        print a_date
+        print(a_date)
         
         vals_mod = da_mod_anoms.loc[a_date]
         analog_pool = da_obsc_anoms[win_masks.loc[a_date.strftime('%m-%d')].values]        
@@ -256,7 +256,7 @@ def downscale_analog(ds, win_masks):
     
     for a_date in da_mod.time.to_pandas().index:
         
-        print a_date
+        print(a_date)
         
         vals_mod = da_mod.loc[a_date]
         analog_pool = da_obsc[win_masks.loc[a_date.strftime('%m-%d')].values]
@@ -363,7 +363,7 @@ def downscale_analog_nonzero_scale(ds, win_masks):
     
     for a_date in da_mod.time.to_pandas().index:
         
-        print a_date
+        print(a_date)
         
         vals_mod = da_mod.loc[a_date]
         analog_pool = da_obsc[win_masks.loc[a_date.strftime('%m-%d')].values]
@@ -392,7 +392,7 @@ def downscale_analog_noscale(ds, win_masks):
     
     for a_date in da_mod.time.to_pandas().index:
         
-        print a_date
+        print(a_date)
         
         vals_mod = da_mod.loc[a_date]
         analog_pool = da_obsc[win_masks.loc[a_date.strftime('%m-%d')].values]
@@ -411,7 +411,7 @@ def downscale_linear_combo(da_gcm, da_aphro_cg, win_masks, da_aphro):
     
     for a_date in da_gcm.time.to_pandas().index:
         
-        print a_date
+        print(a_date)
         
         vals_gcm = da_gcm.loc[a_date]
         analog_pool = da_aphro_cg[win_masks.loc[a_date.strftime('%m-%d')].values]
@@ -620,7 +620,7 @@ def validate_hss(mod_d, obs, wet_thres=0, months=None):
 
 def to_anomalies(da_prcp, base_startend_yrs=None):
     
-    da_prcp_mthly = da_prcp.resample('MS', dim='time', how='mean', skipna=False)
+    da_prcp_mthly = da_prcp.resample(time='MS').mean()
     
     if base_startend_yrs is None:
         da_prcp_clim = da_prcp_mthly.groupby('time.month').mean(dim='time') 
@@ -632,8 +632,7 @@ def to_anomalies(da_prcp, base_startend_yrs=None):
     return da_prcp_anoms, da_prcp_clim
 
 def to_clim(da_prcp):
-    
-    da_mthly = da_prcp.resample('MS', dim='time', how='mean', skipna=False)
+    da_mthly = da_prcp.resample(time ='MS').mean()
     da_clim =  da_mthly.groupby('time.month').mean(dim='time')
     return da_clim
 
@@ -643,23 +642,35 @@ class PrcpDownscale():
     def __init__(self, fpath_prcp_obs, fpath_prcp_obsc, base_start_year, base_end_year,
                  train_start_year, train_end_year, downscale_start_year, downscale_end_year):
         
-        self.da_obs = xr.open_dataset(fpath_prcp_obs).PCP
-        self.da_obsc = xr.open_dataset(fpath_prcp_obsc).PCP.load()
-        
+        self.ds_obs = xr.open_dataset(fpath_prcp_obs)
+        self.ds_obs = self.ds_obs.rename({'precip': 'pr'})
+        self.da_obs = self.ds_obs.pr
+        self.ds_obs.close()
+        self.ds_obsc = xr.open_dataset(fpath_prcp_obsc)
+        self.ds_obsc = self.ds_obsc.rename({'precip': 'pr'})
+        self.da_obsc = self.ds_obsc.pr.load()
+        self.ds_obsc.close()
+
         # Set any negative values due to bicubic smoothing to 0
         self.da_obsc.values[self.da_obsc.values < 0] = 0
-        
-        self.da_obs = self.da_obs.loc[:, self.da_obsc.lat.values, self.da_obsc.lon.values].load()
+
+        # Needed to round lat/lon data because of small differences (10^-7) -- but to_anomalies func won't work without it
+        latlon_dict = {'latitude': self.da_obsc.latitude.round(3), 'longitude': self.da_obsc.longitude.round(3)}
+        latlon_dict_obs = {'latitude': self.da_obs.latitude.round(3), 'longitude': self.da_obs.longitude.round(3)}
+        self.da_obs = self.da_obs.assign_coords(latlon_dict_obs)
+        self.da_obsc = self.da_obsc.assign_coords(latlon_dict)
+        self.da_obs = self.da_obs.loc[:,self.da_obsc.latitude, self.da_obsc.longitude].load() # sJ changed because of different order in CHIRPS data 
+        # self.da_obs = self.da_obs.rename({'latitude': 'lat', 'longitude': 'lon'})
+        # self.da_obsc = self.da_obsc.rename({'latitude': 'lat', 'longitude': 'lon'}) # observed data has different names - must rename to match
+
     
-        self.da_obs['time'] = _convert_times(self.da_obs)
-        self.da_obsc['time'] = _convert_times(self.da_obsc)
+        # self.da_obs['time'] = _convert_times(self.da_obs)
+        # self.da_obsc['time'] = _convert_times(self.da_obsc)
 
         self.da_obs_anoms,self.da_obs_clim = to_anomalies(self.da_obs, (base_start_year, base_end_year))
         self.da_obsc_anoms = to_anomalies(self.da_obsc, (base_start_year,base_end_year))[0]
-            
         self.da_obsc_anoms = self.da_obsc_anoms.loc[train_start_year:train_end_year]
         self.da_obsc = self.da_obsc.loc[train_start_year:train_end_year]
-        
         self.win_masks91 = _window_masks(self.da_obsc_anoms.time.to_pandas().index, winsize=91)
         
         self.base_start_year = base_start_year
@@ -668,6 +679,8 @@ class PrcpDownscale():
         self.train_end_year = base_end_year
         self.downscale_start_year = downscale_start_year
         self.downscale_end_year = downscale_end_year
+
+
         
     def downscale(self, da_mod):
         
@@ -686,12 +699,10 @@ class PrcpDownscale():
         
         for a_date in da_mod_anoms.time.to_pandas().index:
             
-            #print a_date
-            
+            print(a_date)
             vals_mod = da_mod_anoms.loc[a_date]
             analog_pool = da_obsc_anoms[self.win_masks91.loc[a_date.strftime('%m-%d')].values]
-            
-            rmse_analogs = np.sqrt((np.square(vals_mod - analog_pool)).mean(dim=('lon', 'lat')))
+            rmse_analogs = np.sqrt((np.square(vals_mod - analog_pool)).mean(dim=('longitude', 'latitude')))
             vals_analog = analog_pool[int(rmse_analogs.argmin())]
             
             s = vals_mod - vals_analog
@@ -704,7 +715,9 @@ class PrcpDownscale():
             vals_d.values[mask_wet_invalid] = vals_obs_anoms.values[mask_wet_invalid]
                        
             da_mod_anoms_d.loc[a_date] = vals_d.values
+
         
         da_mod_d = da_mod_anoms_d.groupby('time.month') * da_obs_clim
+        print("finished this")
                 
         return da_mod_d

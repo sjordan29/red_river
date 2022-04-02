@@ -59,7 +59,7 @@ mw_bias_correct <- function(obs, mod, idx_train, idx_fut, bias_func, win_masks,
   masks_win_train <- win_masks[[idx_train]]
   
   for (a_idx_fut in idx_fut) {
-    
+
     masks_win_fut <- win_masks[[a_idx_fut]]
     masks_mthday_fut <- win_masks_1day[[a_idx_fut]]
     
@@ -72,7 +72,7 @@ mw_bias_correct <- function(obs, mod, idx_train, idx_fut, bias_func, win_masks,
                                                    a_idx_fut,sep='_')
     xtsAttributes(vals_mod_fut_adj) <- xtsAttributes(vals_mod_train)
     
-    for (a_day in row.names(masks_mthday_fut)) {   
+    for (a_day in row.names(masks_mthday_fut)) {
       
       mask_win_train <- masks_win_train[a_day,]
       mask_win_fut <- masks_win_fut[a_day,]
@@ -85,16 +85,15 @@ mw_bias_correct <- function(obs, mod, idx_train, idx_fut, bias_func, win_masks,
     }
     
     if (correct_win) {
-      
       vals_mod_fut_adj_nowin <- bias_func(vals_obs, vals_mod_train, vals_mod_fut, vals_mod_fut) 
       
       # Bias correct vals_mod_fut_adj with vals_mod_fut_adj_nowin
       vals_mod_fut_adj <- bias_func(vals_mod_fut_adj_nowin, vals_mod_fut_adj,
                                     vals_mod_fut_adj, vals_mod_fut_adj)
     }
-
-    mod_fut_adj <- rbind(mod_fut_adj, vals_mod_fut_adj)
     
+    mod_fut_adj <- rbind(mod_fut_adj, vals_mod_fut_adj)
+
   }
   
   return(mod_fut_adj)
@@ -195,12 +194,13 @@ wetday_bias <- function(obs, pred_train, pred_fut, pred_fut_subset) {
 wetday_threshold <- function(obs, mod) {
   
   nwet_obs <- sum(obs > 0)
-  nwet_mod <- sum(mod > 0)
+  nwet_mod <- sum(mod > 0, na.rm=TRUE)
   
   ndif <- nwet_mod-nwet_obs
+  print(c(nwet_mod, nwet_obs))
   
   if (ndif > 0) {
-    thres <- sort(as.numeric(mod[mod > 0]))[ndif]    
+    thres <- sort(as.numeric(mod[mod > 0]))[ndif]  
   } else {
     # Dry bias
     thres <- 0
